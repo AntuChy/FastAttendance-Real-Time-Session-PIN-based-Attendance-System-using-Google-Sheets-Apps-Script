@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #eef2f7; color: #1f2937; padding: 16px; -webkit-font-smoothing: antialiased; }
+    .wrap { max-width: 460px; margin: 0 auto; }
+    h1 { font-size: 20px; text-align: center; margin-bottom: 14px; color: #111827; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab { flex: 1; padding: 10px; border: none; border-radius: 10px; background: #dbe2ea;
+      font-size: 15px; font-weight: 600; cursor: pointer; color: #475569; }
+    .tab.active { background: #4f46e5; color: #fff; }
+    .card { background: #fff; border-radius: 16px; padding: 18px;
+      box-shadow: 0 4px 16px rgba(15,23,42,.08); }
+    .hidden { display: none; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #475569;
+      margin: 12px 0 5px; }
+    select, input, textarea { width: 100%; padding: 11px 12px; border: 1.5px solid #d1d9e3;
+      border-radius: 10px; font-size: 15px; background: #fff; color: #1f2937; font-family: inherit; }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: #4f46e5; }
+    button { cursor: pointer; font-family: inherit; }
+    .primary { width: 100%; margin-top: 14px; padding: 13px; border: none; border-radius: 11px;
+      background: #4f46e5; color: #fff; font-size: 16px; font-weight: 700; }
+    .primary:active { transform: scale(.99); }
+    .primary:disabled { background: #a5b4fc; }
+    .ghost { width: 100%; margin-top: 8px; padding: 10px; border: 1.5px solid #d1d9e3;
+      border-radius: 10px; background: #fff; color: #475569; font-size: 14px; font-weight: 600; }
+    .danger { background: #ef4444; color: #fff; border: none; }
+    .row { display: flex; gap: 8px; }
+    .row > button { flex: 1; }
+    .hint { font-size: 13px; color: #64748b; margin-bottom: 4px; }
+    .msg { margin-top: 12px; padding: 11px; border-radius: 10px; font-size: 14px;
+      font-weight: 600; display: none; }
+    .msg.ok   { display: block; background: #dcfce7; color: #166534; }
+    .msg.err  { display: block; background: #fee2e2; color: #991b1b; }
+    .msg.info { display: block; background: #e0e7ff; color: #3730a3; }
+    .session { margin-top: 14px; padding: 14px; border-radius: 12px;
+      background: #eef2ff; text-align: center; }
+    .pin { font-size: 14px; color: #3730a3; font-weight: 600; }
+    .pin span { font-size: 32px; font-weight: 800; letter-spacing: 5px; display: block;
+      margin-top: 4px; color: #4f46e5; }
+    .count { margin-top: 6px; font-size: 14px; font-weight: 700; color: #475569; }
+    .status { margin-top: 12px; font-size: 14px; }
+    .bar { display: flex; gap: 8px; margin-bottom: 8px; }
+    .pill { flex: 1; text-align: center; padding: 8px; border-radius: 9px; font-weight: 700; }
+    .pill.p { background: #dcfce7; color: #166534; }
+    .pill.a { background: #fee2e2; color: #991b1b; }
+    .rolls { font-size: 13px; color: #475569; line-height: 1.7; }
+    details.adv { margin-top: 16px; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+    summary { font-size: 14px; font-weight: 600; color: #4f46e5; cursor: pointer; padding: 6px 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📋 Fast Attendance</h1>
+
+  <div class="tabs">
+    <button id="tabStudentBtn" class="tab active" onclick="showTab('student')">Student</button>
+    <button id="tabTeacherBtn" class="tab" onclick="showTab('teacher')">Teacher</button>
+  </div>
+
+  <!-- ===================== STUDENT ===================== -->
+  <div id="studentTab" class="card">
+    <p class="hint">Mark yourself present while a session is open.</p>
+    <label>Section</label>
+    <select id="sSection" onchange="loadRolls()"></select>
+    <label>Your Roll</label>
+    <select id="sRoll"></select>
+    <label>Session PIN</label>
+    <input id="sPin" type="tel" inputmode="numeric" maxlength="4"
+           placeholder="4-digit PIN shown by teacher">
+    <button class="primary" id="sSubmit" onclick="submitAttendance()">Submit Attendance</button>
+    <button class="ghost" onclick="initStudent()">&#8635; Refresh open sessions</button>
+    <div id="sMsg" class="msg"></div>
+  </div>
+
+  <!-- ===================== TEACHER ===================== -->
+  <div id="teacherTab" class="card hidden">
+    <label>Teacher Password</label>
+    <input id="tPw" type="password" placeholder="Password">
+    <label>Section</label>
+    <select id="tSection"></select>
+    <label>Open for (minutes)</label>
+    <input id="tMin" type="number" value="10" min="1" max="240">
+    <div class="row">
+      <button class="primary" style="margin-top:14px" onclick="openSession()">Open Session</button>
+      <button class="danger"  style="margin-top:14px;border-radius:11px;font-weight:700"
+              onclick="closeSession()">Close</button>
+    </div>
+
+    <div id="tSession" class="session hidden">
+      <div class="pin">SESSION PIN<span id="tPin">----</span></div>
+      <div class="count" id="tCountdown"></div>
+    </div>
+
+    <div class="row" style="margin-top:6px">
+      <button class="ghost" onclick="refreshStatus()">&#8635; Live Status</button>
+      <button class="ghost" onclick="markAbsent()">Mark rest Absent</button>
+    </div>
+    <div id="tStatus" class="status"></div>
+    <div id="tMsg" class="msg"></div>
+
+    <details class="adv">
+      <summary>&#43; Create a new section</summary>
+      <label>Section name</label>
+      <input id="cName" placeholder="CSE302(10)Theory">
+      <label>Students &mdash; one per line: <em>roll, name</em></label>
+      <textarea id="cRolls" rows="5" placeholder="01, Alice Rahman&#10;02, Bob Karim"></textarea>
+      <button class="primary" onclick="createSection()">Create Section</button>
+    </details>
+  </div>
+</div>
+
+<script>
+function showTab(t) {
+  document.getElementById('studentTab').classList.toggle('hidden', t !== 'student');
+  document.getElementById('teacherTab').classList.toggle('hidden', t !== 'teacher');
+  document.getElementById('tabStudentBtn').classList.toggle('active', t === 'student');
+  document.getElementById('tabTeacherBtn').classList.toggle('active', t === 'teacher');
+}
+
+function fill(id, items) {
+  var el = document.getElementById(id);
+  el.innerHTML = '';
+  items.forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = (v.value !== undefined) ? v.value : v;
+    o.textContent = (v.label !== undefined) ? v.label : v;
+    el.appendChild(o);
+  });
+}
+
+function msg(id, text, kind) {
+  var el = document.getElementById(id);
+  el.className = 'msg ' + kind;
+  el.textContent = text;
+}
+
+/* ---------- init ---------- */
+window.onload = function () {
+  initStudent();
+  google.script.run.withSuccessHandler(function (s) {
+    fill('tSection', s);
+  }).getSections();
+};
+
+/* ---------- student ---------- */
+function initStudent() {
+  msg('sMsg', 'Loading open sessions...', 'info');
+  google.script.run.withSuccessHandler(function (open) {
+    if (!open.length) {
+      fill('sSection', []);
+      document.getElementById('sRoll').innerHTML = '';
+      msg('sMsg', 'No open session right now. Ask your teacher to start one, then tap Refresh.', 'info');
+      return;
+    }
+    fill('sSection', open);
+    document.getElementById('sMsg').className = 'msg';
+    loadRolls();
+  }).withFailureHandler(function (e) {
+    msg('sMsg', e.message, 'err');
+  }).getOpenSections();
+}
+
+function loadRolls() {
+  var sec = document.getElementById('sSection').value;
+  if (!sec) return;
+  google.script.run.withSuccessHandler(function (rolls) {
+    fill('sRoll', rolls.map(function (r) {
+      return { value: r.roll, label: r.name ? r.roll + ' \u2014 ' + r.name : r.roll };
+    }));
+  }).getRolls(sec);
+}
+
+function submitAttendance() {
+  var sec  = document.getElementById('sSection').value;
+  var roll = document.getElementById('sRoll').value;
+  var pin  = document.getElementById('sPin').value.trim();
+  if (!sec)  { msg('sMsg', 'Select a section.', 'err'); return; }
+  if (!roll) { msg('sMsg', 'Select your roll.', 'err'); return; }
+  if (pin.length !== 4) { msg('sMsg', 'Enter the 4-digit PIN.', 'err'); return; }
+
+  var btn = document.getElementById('sSubmit');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  google.script.run.withSuccessHandler(function (r) {
+    btn.disabled = false; btn.textContent = 'Submit Attendance';
+    msg('sMsg', (r.ok ? '\u2713 ' : '\u2717 ') + r.msg, r.ok ? 'ok' : 'err');
+    if (r.ok) document.getElementById('sPin').value = '';
+  }).withFailureHandler(function (e) {
+    btn.disabled = false; btn.textContent = 'Submit Attendance';
+    msg('sMsg', e.message, 'err');
+  }).markPresent(sec, roll, pin);
+}
+
+/* ---------- teacher ---------- */
+var timer = null;
+
+function openSession() {
+  var pw  = document.getElementById('tPw').value;
+  var sec = document.getElementById('tSection').value;
+  var min = document.getElementById('tMin').value;
+  if (!pw)  { msg('tMsg', 'Enter teacher password.', 'err'); return; }
+  if (!sec) { msg('tMsg', 'Select a section.', 'err'); return; }
+  google.script.run.withSuccessHandler(function (r) {
+    if (!r.ok) { msg('tMsg', r.msg, 'err'); return; }
+    msg('tMsg', r.msg, 'ok');
+    document.getElementById('tSession').classList.remove('hidden');
+    document.getElementById('tPin').textContent = r.pin;
+    startCountdown(r.expiry);
+    refreshStatus();
+  }).withFailureHandler(function (e) {
+    msg('tMsg', e.message, 'err');
+  }).openSession(pw, sec, min);
+}
+
+function startCountdown(expiry) {
+  if (timer) clearInterval(timer);
+  function tick() {
+    var left = expiry - Date.now();
+    var el = document.getElementById('tCountdown');
+    if (left <= 0) { el.textContent = 'Session expired'; clearInterval(timer); return; }
+    var m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+    el.textContent = 'Open \u2014 ' + m + ':' + (s < 10 ? '0' : '') + s + ' left';
+  }
+  tick();
+  timer = setInterval(tick, 1000);
+}
+
+function closeSession() {
+  var pw = document.getElementById('tPw').value;
+  var sec = document.getElementById('tSection').value;
+  if (!pw || !sec) { msg('tMsg', 'Password and section needed.', 'err'); return; }
+  google.script.run.withSuccessHandler(function (r) {
+    msg('tMsg', r.msg, r.ok ? 'ok' : 'err');
+    if (r.ok && timer) {
+      clearInterval(timer);
+      document.getElementById('tCountdown').textContent = 'Session closed';
+    }
+  }).closeSession(pw, sec);
+}
+
+function refreshStatus() {
+  var pw = document.getElementById('tPw').value;
+  var sec = document.getElementById('tSection').value;
+  if (!pw || !sec) { msg('tMsg', 'Password and section needed.', 'err'); return; }
+  google.script.run.withSuccessHandler(function (r) {
+    if (!r.ok) { msg('tMsg', r.msg, 'err'); return; }
+    document.getElementById('tStatus').innerHTML =
+      '<div class="bar">' +
+        '<div class="pill p">Present ' + r.presentCount + '</div>' +
+        '<div class="pill a">Absent ' + r.absent.length + '</div></div>' +
+      '<div class="rolls"><b>' + r.date + '</b> &middot; Total ' + r.total + '<br>' +
+        'Present: ' + (r.present.join(', ') || '\u2014') + '<br>' +
+        'Not yet: ' + (r.absent.join(', ') || '\u2014') + '</div>';
+  }).sessionStatus(pw, sec);
+}
+
+function markAbsent() {
+  var pw = document.getElementById('tPw').value;
+  var sec = document.getElementById('tSection').value;
+  if (!pw || !sec) { msg('tMsg', 'Password and section needed.', 'err'); return; }
+  if (!confirm('Mark every student who is not "P" as Absent for today?')) return;
+  google.script.run.withSuccessHandler(function (r) {
+    msg('tMsg', r.msg, r.ok ? 'ok' : 'err');
+    refreshStatus();
+  }).markRemainingAbsent(pw, sec);
+}
+
+function createSection() {
+  var pw = document.getElementById('tPw').value;
+  var name = document.getElementById('cName').value;
+  var rolls = document.getElementById('cRolls').value;
+  if (!pw) { msg('tMsg', 'Enter teacher password.', 'err'); return; }
+  google.script.run.withSuccessHandler(function (r) {
+    msg('tMsg', r.msg, r.ok ? 'ok' : 'err');
+    if (r.ok) {
+      document.getElementById('cName').value = '';
+      document.getElementById('cRolls').value = '';
+      google.script.run.withSuccessHandler(function (s) {
+        fill('tSection', s);
+      }).getSections();
+    }
+  }).createSection(pw, name, rolls);
+}
+</script>
+</body>
+</html>
